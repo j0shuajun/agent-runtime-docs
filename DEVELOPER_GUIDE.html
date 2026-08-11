@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Developer Guide / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developer Guide / Agent Runtime API Server"><meta data-rh="true" name="description" content="이 문서는 Agent Runtime 개발/운영 담당자가 runtime env, PostgreSQL, assets를 관리할 때"><meta data-rh="true" property="og:description" content="이 문서는 Agent Runtime 개발/운영 담당자가 runtime env, PostgreSQL, assets를 관리할 때"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developer Guide","item":"https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.0c7e87d8.css">
-<script src="/agent-runtime-docs/assets/js/runtime~main.54d93c18.js" defer="defer"></script>
+<script src="/agent-runtime-docs/assets/js/runtime~main.583c532e.js" defer="defer"></script>
 <script src="/agent-runtime-docs/assets/js/main.ecef2fb1.js" defer="defer"></script>
 </head>
 <body>
@@ -231,7 +231,7 @@ agent tree로 보여주고, evidence는 같은 tree에 observation input/output�
 Turn Evaluation의 validated response는 public evidence가 아니라 Langfuse UI의
 <code>run.artifact.output.turn_evaluation</code>에서 확인합니다.</p>
 <p>Langfuse raw trace와 public Evidence의 정보량은 의도적으로 다릅니다. Evidence는 실행 결과를
-preview로 만들거나 자르지 않지만, Main generation의 system/developer message, generation에
+preview로 만들거나 자르지 않지만, Main model 호출의 system/developer message, model 호출에
 합성된 Tool description·JSON Schema, Tool input의 최상위 <code>runtime</code>, framework metadata와 내부
 ID는 제외합니다. Subagent system prompt는 위임 동작을 분석할 수 있도록 보존합니다.</p>
 <p>예를 들어 chat이 정상 완료되면 보통 다음처럼 연결해서 봅니다.</p>
