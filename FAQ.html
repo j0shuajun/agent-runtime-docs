@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">FAQ / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="FAQ / Agent Runtime API Server"><meta data-rh="true" name="description" content="Streaming에서 첫 chunk가 항상 assistant role인가요?"><meta data-rh="true" property="og:description" content="Streaming에서 첫 chunk가 항상 assistant role인가요?"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"FAQ","item":"https://j0shuajun.github.io/agent-runtime-docs/FAQ"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.0c7e87d8.css">
-<script src="/agent-runtime-docs/assets/js/runtime~main.379d6fe1.js" defer="defer"></script>
+<script src="/agent-runtime-docs/assets/js/runtime~main.833b2c49.js" defer="defer"></script>
 <script src="/agent-runtime-docs/assets/js/main.ecef2fb1.js" defer="defer"></script>
 </head>
 <body>
@@ -105,8 +105,10 @@ semantic observation과 각 input/output을 볼 수 있습니다.</p>
 보존하기 위한 값이므로 public tree를 만들 때는 <code>semantic_parent_observation_id</code>를 사용합니다.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="어떤-실행-결과가-evidence에-남나요">어떤 실행 결과가 evidence에 남나요?<a href="#어떤-실행-결과가-evidence에-남나요" class="hash-link" aria-label="어떤 실행 결과가 evidence에 남나요?에 대한 직접 링크" title="어떤 실행 결과가 evidence에 남나요?에 대한 직접 링크" translate="no">​</a></h2>
 <p><code>mcp_server.json</code>에 tool 목록을 따로 선택하지 않습니다. Langfuse에 semantic observation으로
-기록된 main/subagent, model generation, MCP/tool, Skill, evaluator, guardrail, HITL, error가
+기록된 main/subagent, model generation, MCP/tool, Skill, guardrail, HITL, error가
 evidence에 남습니다.</p>
+<p>Turn Evaluation은 실행 observation이 아니라 terminal 결과이므로 Langfuse의
+<code>run.artifact.output.turn_evaluation</code>에서 확인합니다. <code>/evidence</code>에는 넣지 않습니다.</p>
 <p>Tool result는 해당 observation의 <code>output</code>에 JSON-safe 형태로 보존됩니다. Tool이
 timeout이나 exception으로 실패해도 observation을 버리지 않고 <code>status=&quot;error&quot;</code>와
 <code>error</code>를 반환합니다. 다만 Langfuse에 기록되지 않은 provider-private reasoning은
