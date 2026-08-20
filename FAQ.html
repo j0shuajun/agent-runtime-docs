@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">FAQ / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="FAQ / Agent Runtime API Server"><meta data-rh="true" name="description" content="orch.rag가 비어 있으면 RAG 검색이 안 된 건가요?"><meta data-rh="true" property="og:description" content="orch.rag가 비어 있으면 RAG 검색이 안 된 건가요?"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"FAQ","item":"https://j0shuajun.github.io/agent-runtime-docs/FAQ"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.0c7e87d8.css">
-<script src="/agent-runtime-docs/assets/js/runtime~main.9b0baf66.js" defer="defer"></script>
-<script src="/agent-runtime-docs/assets/js/main.ecef2fb1.js" defer="defer"></script>
+<script src="/agent-runtime-docs/assets/js/runtime~main.ab7ad0d5.js" defer="defer"></script>
+<script src="/agent-runtime-docs/assets/js/main.4274c21e.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -72,14 +72,16 @@ observation과 각 input/output을 볼 수 있습니다.</p>
 Skill과 model 호출도 같은 방식으로 소유 agent 아래에 놓입니다. 별도 ID를 맞춰 public
 tree를 다시 조립할 필요가 없습니다.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="mcp-tool-rag-권한-관리는-어떻게-되나요">MCP, tool, RAG 권한 관리는 어떻게 되나요?<a href="#mcp-tool-rag-권한-관리는-어떻게-되나요" class="hash-link" aria-label="MCP, tool, RAG 권한 관리는 어떻게 되나요?에 대한 직접 링크" title="MCP, tool, RAG 권한 관리는 어떻게 되나요?에 대한 직접 링크" translate="no">​</a></h2>
-<p>요청의 <code>orch.rag_params.permission_groups</code>를 기준으로 통제합니다.</p>
+<p>인증·권한 해석을 끝낸 effective request의 <code>orch.rag_params.permission_groups</code>를 기준으로
+통제합니다.</p>
 <table><thead><tr><th>대상</th><th>통제 방식</th></tr></thead><tbody><tr><td>RAG retrieval</td><td><code>permission_groups</code>가 RAG backend로 전달되어 사용자가 접근 가능한 문서만 검색합니다.</td></tr><tr><td>MCP server/tool</td><td><code>access.permission_groups</code>가 선언된 server만 요청 group과 교집이 있을 때 runtime에 노출됩니다. 선언이 없거나 빈 목록이면 public입니다.</td></tr><tr><td>Skill</td><td><code>access.permission_groups</code>가 선언된 Skill만 교집이 필요합니다. 선언이 없거나 비어 있으면 public입니다.</td></tr><tr><td>Agent</td><td><code>access.permission_groups</code>가 선언된 Agent만 교집이 필요합니다. 선언이 없거나 비어 있으면 public입니다.</td></tr></tbody></table>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="permission_groups가-뭔가요"><code>permission_groups</code>가 뭔가요?<a href="#permission_groups가-뭔가요" class="hash-link" aria-label="permission_groups가-뭔가요에 대한 직접 링크" title="permission_groups가-뭔가요에 대한 직접 링크" translate="no">​</a></h2>
-<p><code>permission_groups</code>는 삼성전자 DS 내부 인증/권한 체계에서 계산된 SSG group 기반 리스트입니다.
-사용자 서비스는 로그인한 사용자의 실제 권한 group 목록을 받아
-<code>orch.rag_params.permission_groups</code>에 그대로 전달해야 합니다.</p>
-<p>이 값은 임의로 넓혀 보내면 안 됩니다. 비어 있거나 실제 권한과 다르면 RAG 검색 결과가 줄거나,
-제한된 MCP, Skill, Agent가 runtime에 보이지 않을 수 있습니다.</p>
+<p><code>permission_groups</code>는 RAG·MCP·Skill·Agent의 실제 권한 판단에 쓰이는 문자열 리스트입니다.
+Main Frontend와 관리자는 request Groups를 그대로 사용합니다. Sub Frontend와 개인
+API는 AD ID로 조회한 Permission API <code>value</code>와 request Groups를 병합합니다. 개인 API가
+추가 Groups를 제시할 수 있는 것도 현재 정책에서 의도적으로 허용합니다.</p>
+<p>병합 결과는 정렬하지 않고 exact string <code>set()</code> 비교만 사용합니다. 따라서 순서나
+대소문자·공백·Unicode normalization을 권한 규칙으로 가정하면 안 됩니다.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="permission_groups는-어디에-쓰이나요"><code>permission_groups</code>는 어디에 쓰이나요?<a href="#permission_groups는-어디에-쓰이나요" class="hash-link" aria-label="permission_groups는-어디에-쓰이나요에 대한 직접 링크" title="permission_groups는-어디에-쓰이나요에 대한 직접 링크" translate="no">​</a></h2>
 <p><code>permission_groups</code>는 한 요청 안에서 두 가지 역할을 합니다.</p>
 <ol>
