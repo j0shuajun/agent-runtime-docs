@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">MCP / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/agent-assets/mcp"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="MCP / Agent Runtime API Server"><meta data-rh="true" name="description" content="MCP server는 assets/mcp_server.json 또는 기본 설정에서 로드됩니다. Non-empty"><meta data-rh="true" property="og:description" content="MCP server는 assets/mcp_server.json 또는 기본 설정에서 로드됩니다. Non-empty"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/agent-assets/mcp"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/agent-assets/mcp" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/agent-assets/mcp" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Agent Assets","item":"https://j0shuajun.github.io/agent-runtime-docs/AGENT_ASSETS"},{"@type":"ListItem","position":2,"name":"MCP","item":"https://j0shuajun.github.io/agent-runtime-docs/agent-assets/mcp"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.0c7e87d8.css">
-<script src="/agent-runtime-docs/assets/js/runtime~main.dcc90467.js" defer="defer"></script>
+<script src="/agent-runtime-docs/assets/js/runtime~main.87d797cb.js" defer="defer"></script>
 <script src="/agent-runtime-docs/assets/js/main.4274c21e.js" defer="defer"></script>
 </head>
 <body>
@@ -43,9 +43,14 @@ canonical tool name을 알고 호출하더라도 tool policy에서 거부됩니�
 RAG API가 tool 실행을 감싸는 상한으로 사용합니다. HTTP/streamable MCP에서는 adapter connection
 timeout으로도 전달하고, 같은 값으로 tool 실행도 감쌉니다. 이 값과 별도로 RAG API는
 <code>MCP_DISCOVERY_TIMEOUT</code>으로 server별 tool discovery 전체를 감쌉니다. Manifest는 server별 best-effort
-방식이라 느리거나 실패한 MCP만 빠진 partial inventory를 반환할 수 있습니다. 반면 Chat graph
-compile은 현재 요청에 visible한 enabled MCP 세트의 완전성을 요구합니다. 하나라도 discovery가
-실패하면 partial tool set으로 실행하지 않고 <code>503 mcp_discovery_failed</code>로 거절합니다.</p>
+방식이라 느리거나 실패한 MCP만 빠진 partial inventory를 반환할 수 있습니다. Chat 최초 discovery는
+실패한 optional MCP를 제외하고 정상 MCP로 graph를 만들며, required retriever contract가 없을 때만
+<code>503 mcp_discovery_failed</code>로 거절합니다.</p>
+<p>Chat은 MCP server별 tool set을 last-known-good로 보관하고, 마지막 discovery attempt부터 600초가
+지난 첫 요청에서 다시 확인합니다. Refresh 실패 server는 기존 tool을 유지하고, 정상 응답 server는
+빈 목록을 포함한 새 tool set 전체로 교체합니다. Tool name, description, input schema가 바뀐 경우에만
+새 graph를 compile하므로 외부 MCP 자체의 contract 변경은 runtime 재시작 없이 최대 600초 뒤
+반영됩니다. Asset의 server entry나 access policy 변경에는 process 재시작이 필요합니다.</p>
 <p>stdio MCP의 <code>command</code>가 <code>python</code> 또는 <code>python3</code>이면 runtime에서 현재 RAG API process의 Python
 executable로 바꿔 실행합니다. <code>.venv</code>로 API를 띄운 local E2E에서는 child MCP도 같은 <code>.venv</code>를
 사용합니다. 절대 경로나 별도 launcher처럼 명시적인 custom command는 그대로 전달됩니다.</p>
