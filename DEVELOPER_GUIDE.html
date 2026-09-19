@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Developer Guide / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developer Guide / Agent Runtime API Server"><meta data-rh="true" name="description" content="이 문서는 Agent Runtime 개발/운영 담당자가 runtime env, streaming, observability,"><meta data-rh="true" property="og:description" content="이 문서는 Agent Runtime 개발/운영 담당자가 runtime env, streaming, observability,"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developer Guide","item":"https://j0shuajun.github.io/agent-runtime-docs/DEVELOPER_GUIDE"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.0c7e87d8.css">
-<script src="/agent-runtime-docs/assets/js/runtime~main.116f367d.js" defer="defer"></script>
+<script src="/agent-runtime-docs/assets/js/runtime~main.3b08b4c3.js" defer="defer"></script>
 <script src="/agent-runtime-docs/assets/js/main.41b79759.js" defer="defer"></script>
 </head>
 <body>
@@ -35,6 +35,11 @@ revision budget 안에서 compiled graph의 Main Agent model로 다시 이동합
 표시합니다. SSE content chunk에는 구분용 줄바꿈을 추가하지 않습니다. Terminal result와 run
 artifact에서는 revision 전후 assistant 답변 블록만 빈 줄로 구분합니다. 내부 평가 instruction은
 사용자 답변에 포함하지 않습니다.</p>
+<p>Evaluator는 배포 설정인 <code>LLM_TIMEOUT</code>을 쓰지 않고 initial request, JSON/schema validation,
+optional repair를 모두 포함한 30초 전체 budget을 사용합니다. Timeout, Internal LLM 오류,
+critical schema 오류가 나도 이미 만든 Main Agent 답변을 유지하고 revision과 persistence write는
+수행하지 않습니다. <code>memory</code>와 <code>conversation_summary</code>는 부가 persistence decision이므로 각각
+검증하여, 하나가 잘못되어도 유효한 completion/revision 판단은 버리지 않습니다.</p>
 <p>Compaction이 없을 때 Evaluator는 현재 turn의 User → model → Tool → final model raw 실행을
 그대로 봅니다. Compaction snapshot이 있으면 Summary 전체, cutoff 전에 있던 현재 turn의 실제
 User 원문, cutoff 이후 raw 실행만 봅니다. 압축 전의 큰 Tool result를 다시 넣지 않으며, Summary는
@@ -50,8 +55,11 @@ reasoning과 이전 snapshot을 새 snapshot 하나로 접습니다. 외부 user
 <p>이 설정은 <code>messages &gt;= 200</code> 또는 <code>tokens &gt;= 170000</code> 중 먼저 만족되는 조건에서 compaction을
 시작합니다. 결과 context를 80k나 100k로 고정하지는 않습니다. snapshot, 보존 user 원문,
 unresolved tail을 합친 실제 크기가 trigger 아래가 되도록 오래된 user 원문을 필요할 때만 추가로
-접습니다. Summary source가 크면 trigger 아래 chunk 여러 개로 요약한 뒤 하나의 rolling snapshot으로
-병합합니다.</p>
+접습니다. Summary source가 크면 summary prompt와 XML serialization을 포함한 실제 입력 크기를
+기준으로 시간순 fragment를 순차 요약합니다. Provider가 context overflow를 반환하면 처리하지
+못한 위치에서 입력을 더 작게 나눠 재시도하고, 크기와 무관한 provider 오류는 반복하지
+않습니다. 요약과 함께 남겨 둘 과거 user 원문은 최근 message부터 합계 최대 20,000 token으로
+제한하되, 현재 user 요청과 미완료 Tool/HITL protocol tail, revision instruction은 별도로 보호합니다.</p>
 <p>배포할 때 기존 <code>COMPACTION_KEEP_MESSAGES</code>, <code>COMPACTION_TRIM_TOKENS</code>,
 <code>DEEPAGENTS_TEST_SUMMARIZATION_KEEP_MESSAGES</code>는 제거해야 합니다. 더 이상 읽지 않는 설정입니다.
 <code>DEEPAGENTS_TEST_SUMMARIZATION_TRIGGER_MESSAGES</code>만 local E2E 재현용으로 남습니다.</p>
@@ -96,32 +104,41 @@ artifact의 구조도 바뀌지 않습니다.</p>
 <code>Send-System-Name</code>, <code>Accept</code>가 실제 HTTP 요청에 포함됩니다. 필수 request context가 없으면
 provider까지 보내지 않고 명시적 compaction 오류로 끝납니다.</p>
 <div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockTitle_OeMC">Compaction summary failure fallback</div><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">대화 내용을 정리하지 못해 요청을 완료하지 못했습니다.</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">잠시 후 다시 시도해 주세요.</span><br></div></code></pre></div></div>
-<p>새로 append할 입력만으로 token trigger를 넘으면 graph와 model을 호출하지 않습니다. Streaming
-terminal은 다음 문구와 <code>finish_reason=error</code>, <code>loop.stop_reason=context_input_too_large</code>를
-반환합니다.</p>
-<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockTitle_OeMC">Oversized input fallback</div><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">입력 내용이 처리 한도를 초과하여 요청을 실행하지 못했습니다.</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">해당 입력 내용은 대화 문맥에 저장되지 않았습니다.</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">내용을 나누어 다시 보내 주세요.</span><br></div></code></pre></div></div>
-<p>원문 대신 FE-visible transcript의 길이와 SHA-256 cursor만 private state에 남깁니다. 같은 chat의
-다음 짧은 요청에는 직전 내용이 보존되지 않았다는 private notice를 한 번만 모델에 주입하므로,
-사용자가 “아까 내용을 요약해 줘”라고 해도 내용을 안다고 답하지 않습니다. 관련 없는 짧은 질문은
-그대로 정상 처리합니다.</p>
+<p>대량 routed transcript는 append할 입력이 compaction trigger를 넘는다는 이유만으로 graph
+진입 전에 거절하지 않습니다. Runtime은 checkpoint와 일치하는 visible prefix를 제외하고
+새 suffix만 전달하며, 중간에 실패한 같은 요청의 재전송은 checkpoint에 이미 들어간
+user message를 중복 추가하지 않습니다. Checkpoint 조회 실패는 빈 대화로 간주하지 않고
+graph 실행 전에 실패로 종료합니다.</p>
+<p>강제 compaction 후에도 provider context overflow가 남으면
+<code>finish_reason=error</code>, <code>loop.stop_reason=context_overflow</code>로 종료합니다. 현재 user 요청 자체가
+provider context보다 큰 경우는 compaction으로 복구할 수 없으므로 caller가 입력을 나누어야
+합니다. Summary provider 오류나 빈 summary는 별도로
+<code>loop.stop_reason=context_compaction_failed</code>로 구분합니다.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="system-prompt와-harness-profile">System prompt와 Harness Profile<a href="#system-prompt와-harness-profile" class="hash-link" aria-label="System prompt와 Harness Profile에 대한 직접 링크" title="System prompt와 Harness Profile에 대한 직접 링크" translate="no">​</a></h3>
 <p>Main agent의 서비스 정체성, 검색 정책, filesystem 사용 규칙은 계속
 <code>configs/system_prompt.jinja2</code> 한 곳에서 관리합니다. Library upgrade로 생긴 Harness Profile은
 이 prompt를 대체하는 별도 하드코딩 계층으로 사용하지 않습니다.</p>
+<p>Request의 단일 <code>role=&quot;system&quot;</code> text는 base prompt를 교체하지 않고 request-local
+<code>configurable</code> data로 전달합니다. Main Agent model middleware가 기존 service-owned runtime
+context 뒤에 authority wrapper와 JSON string으로 직렬화한 requester text를 append합니다.
+직렬화는 caller text와 wrapper 구조의 표현 경계를 구분하기 위한 것이며 instruction 의미를
+제거하는 sanitizer가 아닙니다. 이 middleware는 Subagent 구성에 넣지 않으며 Turn Evaluator와
+compaction summary model도 별도 internal call 경계를 사용합니다. Requester text는 graph
+messages와 checkpoint state에 넣지 않으므로 다음 request나 HITL resume에 자동 복원되지 않습니다.</p>
 <p>현재 Harness Profile의 역할은 model별 native middleware 구성을 공식 extension point로 조정하는
 것입니다. Runtime은 main/subagent model에서 profile key를 계산하고, native 기본
 summarization middleware를 제외한 뒤 RAG 설정을 반영한 middleware를 graph마다 명시적으로
 추가합니다. 이전처럼 library module의 global factory를 잠시 바꾸지 않으므로 여러 graph가
 동시에 compile될 때도 설정 경계가 분명합니다.</p>
-<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockTitle_OeMC">Prompt and middleware composition</div><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">configs/system_prompt.jinja2</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        +</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">model Harness Profile: native summarization 제외</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        +</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">graph middleware: RAG compaction 설정 명시 주입</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        =</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">main/subagent runtime</span><br></div></code></pre></div></div>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockTitle_OeMC">Prompt and middleware composition</div><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">configs/system_prompt.jinja2</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        +</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">service-owned request/runtime context</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        +</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">current request requester instruction (Main Agent only)</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        +</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">model Harness Profile: native summarization 제외</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        +</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">graph middleware: RAG compaction 설정 명시 주입</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        =</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">main/subagent runtime</span><br></div></code></pre></div></div>
 <p>향후 Profile이 tool description이나 prompt adjustment를 지원하더라도, 현재 정책을 임의로
 옮기거나 model 이름별 <code>if</code> 분기를 추가하지 않습니다. 실제로 필요한 model 차이가 생겼을 때
 선언형 profile로 합의한 항목만 관리합니다.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="llm-gateway--model-catalog">LLM gateway / Model catalog<a href="#llm-gateway--model-catalog" class="hash-link" aria-label="LLM gateway / Model catalog에 대한 직접 링크" title="LLM gateway / Model catalog에 대한 직접 링크" translate="no">​</a></h3>
-<table><thead><tr><th>ENV 또는 파일</th><th>필수 여부</th><th>기본값</th><th>설명</th></tr></thead><tbody><tr><td><code>LLM_X_DEP_TICKET</code></td><td>필수</td><td>없음</td><td>main model gateway 호출에 전달하는 dependency ticket입니다. 비어 있으면 production startup이 실패합니다.</td></tr><tr><td><code>SEND_SYSTEM_NAME</code></td><td>필수</td><td>없음</td><td>model gateway에 전달할 호출 주체 이름입니다. <code>.env.sample</code>은 <code>Agent_Runtime</code>를 예시합니다. 비어 있으면 production startup이 실패합니다.</td></tr><tr><td><code>AGENT_NAME</code></td><td>필수</td><td>없음</td><td>Streaming의 모든 JSON SSE event에 top-level <code>agent.name</code>으로 표시할 이름입니다. 앞뒤 공백을 제거한 뒤 빈 값이면 startup이 실패하며, <code>[DONE]</code>과 non-stream 응답에는 추가되지 않습니다.</td></tr><tr><td><code>LLM_TIMEOUT</code></td><td>선택</td><td><code>600</code></td><td>Main ChatOpenAI request/stream idle, Turn Evaluation, Deep Search Internal LLM 호출의 operation별 초 단위 상한입니다. 재시도와 tool을 포함한 전체 turn deadline은 아닙니다. <code>.env.sample</code>은 바깥 proxy cutoff보다 짧게 <code>270</code>을 예시합니다.</td></tr><tr><td><code>MODEL_ENDPOINTS_CONFIG_PATH</code></td><td>선택</td><td><code>configs/endpoints.json</code></td><td>active model catalog 파일을 바꿀 때 사용합니다. 상대 경로는 process working directory 기준입니다.</td></tr><tr><td><code>configs/endpoints.json</code></td><td>조건부</td><td>repository 파일</td><td><code>MODEL_ENDPOINTS_CONFIG_PATH</code> override가 없을 때 필요한 public model id·OpenAI-compatible base URL catalog입니다. <code>/v1/models</code> 응답은 active catalog을 기준으로 만듭니다.</td></tr></tbody></table>
+<table><thead><tr><th>ENV 또는 파일</th><th>필수 여부</th><th>기본값</th><th>설명</th></tr></thead><tbody><tr><td><code>LLM_X_DEP_TICKET</code></td><td>필수</td><td>없음</td><td>main model gateway 호출에 전달하는 dependency ticket입니다. 비어 있으면 production startup이 실패합니다.</td></tr><tr><td><code>SEND_SYSTEM_NAME</code></td><td>필수</td><td>없음</td><td>model gateway에 전달할 호출 주체 이름입니다. <code>.env.sample</code>은 <code>Agent_Runtime</code>를 예시합니다. 비어 있으면 production startup이 실패합니다.</td></tr><tr><td><code>AGENT_NAME</code></td><td>필수</td><td>없음</td><td>Streaming의 모든 JSON SSE event에 top-level <code>agent.name</code>으로 표시할 이름입니다. 앞뒤 공백을 제거한 뒤 빈 값이면 startup이 실패하며, <code>[DONE]</code>과 non-stream 응답에는 추가되지 않습니다.</td></tr><tr><td><code>LLM_TIMEOUT</code></td><td>선택</td><td><code>600</code></td><td>Main ChatOpenAI request/stream idle와 Deep Search Internal LLM 호출의 operation별 초 단위 상한입니다. Turn Evaluation은 이 값이 아닌 고정 30초 전체 budget을 사용합니다. 재시도와 tool을 포함한 전체 turn deadline은 아닙니다. <code>.env.sample</code>은 바깥 proxy cutoff보다 짧게 <code>270</code>을 예시합니다.</td></tr><tr><td><code>MODEL_ENDPOINTS_CONFIG_PATH</code></td><td>선택</td><td><code>configs/endpoints.json</code></td><td>active model catalog 파일을 바꿀 때 사용합니다. 상대 경로는 process working directory 기준입니다.</td></tr><tr><td><code>configs/endpoints.json</code></td><td>조건부</td><td>repository 파일</td><td><code>MODEL_ENDPOINTS_CONFIG_PATH</code> override가 없을 때 필요한 public model id·OpenAI-compatible base URL catalog입니다. <code>/v1/models</code> 응답은 active catalog을 기준으로 만듭니다.</td></tr></tbody></table>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="llm_timeout보다-먼저-300초-근처에서-끝나는-이유는-무엇인가요"><code>LLM_TIMEOUT</code>보다 먼저 300초 근처에서 끝나는 이유는 무엇인가요?<a href="#llm_timeout보다-먼저-300초-근처에서-끝나는-이유는-무엇인가요" class="hash-link" aria-label="llm_timeout보다-먼저-300초-근처에서-끝나는-이유는-무엇인가요에 대한 직접 링크" title="llm_timeout보다-먼저-300초-근처에서-끝나는-이유는-무엇인가요에 대한 직접 링크" translate="no">​</a></h4>
 <p>Application 밖의 Ingress, API gateway, load balancer read/idle timeout이 먼저 만료할 수
-있습니다. <code>LLM_TIMEOUT</code>은 Main/Internal LLM operation의 상한이지 바깥 proxy 정책을
+있습니다. <code>LLM_TIMEOUT</code>은 Main/Deep Search Internal LLM operation의 상한이지 바깥 proxy 정책을
 늘리지 않습니다. 300초는 repository의 고정 기본값이 아니므로 배포 cluster의 Ingress
 annotation, controller ConfigMap, gateway/load balancer 정책을 함께 확인합니다.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage">Storage<a href="#storage" class="hash-link" aria-label="Storage에 대한 직접 링크" title="Storage에 대한 직접 링크" translate="no">​</a></h3>
@@ -190,13 +207,16 @@ timeout이나 exception으로 실패해도 observation을 버리지 않고 해�
 반환합니다. 다만 Langfuse에 기록되지 않은 provider-private reasoning은
 Runs API가 복원할 수 없습니다.</p>
 <p>Turn Evaluation은 LangGraph 실행 node가 아니므로 evidence observation에 섞지 않습니다.
-실제 validated response 배열은 Langfuse UI의 terminal <code>run.artifact.output.turn_evaluation</code>에서
-호출 순서대로 확인합니다. <code>run.artifact</code>에는 <code>run</code>, <code>loop</code>, <code>turn_evaluation</code>이 있으며,
-별도의 observation 개수 marker는 저장하지 않습니다.</p>
+성공한 validated response와 실패 record는 Langfuse UI의 terminal
+<code>run.artifact.output.turn_evaluation</code>에 호출 순서대로 남습니다. Evaluator가 실행되지 않으면 빈
+배열이고, 실행 후 실패하면 <code>completion_status=&quot;failed&quot;</code>, persistence no-op 값과
+<code>failure_reason</code>을 담은 normalized record가 남습니다. Raw exception, response body, prompt,
+Memory 내용은 이 record에 저장하지 않습니다. <code>run.artifact</code>에는 <code>run</code>, <code>loop</code>,
+<code>turn_evaluation</code>이 있으며, 별도의 observation 개수 marker는 저장하지 않습니다.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="langfuse-원본과-evidence의-차이">Langfuse 원본과 Evidence의 차이<a href="#langfuse-원본과-evidence의-차이" class="hash-link" aria-label="Langfuse 원본과 Evidence의 차이에 대한 직접 링크" title="Langfuse 원본과 Evidence의 차이에 대한 직접 링크" translate="no">​</a></h4>
 <p>Langfuse trace는 UI와 기존 분석을 위해 raw 입출력을 보존합니다. Evidence는 실행 의미를
 보존하되, 다음 고정 내부 설정만 공개 projection에서 구조적으로 제외합니다.</p>
-<table><thead><tr><th>항목</th><th>Evidence 결과</th></tr></thead><tbody><tr><td>Main Agent 소유 model 호출의 <code>system</code> / <code>developer</code> message</td><td>제외합니다. <code>configs/system_prompt.jinja2</code>를 문자열로 찾아 지우는 것이 아니라 Main model 호출의 내부 지침 message 전체를 제외합니다.</td></tr><tr><td>Subagent 소유 model 호출의 system prompt</td><td>보존합니다. 어떤 위임과 제약으로 동작했는지 분석하는 데 필요한 정보입니다.</td></tr><tr><td>Model input의 Tool description / JSON Schema</td><td><code>role=&quot;tool&quot;</code>이고 <code>content.type=&quot;function&quot;</code>인 구조적 정의 message만 제외합니다. 실제 Tool result message는 유지합니다.</td></tr><tr><td>후속 Model의 누적 input snapshot</td><td>직전 input의 정확한 연장이고 추가분이 이미 보이는 Model·Tool·Skill·Agent observation으로 모두 설명되면 생략합니다. Agent의 첫 Model input과 새 user/system 맥락·compaction 경계는 보존합니다.</td></tr><tr><td>Tool input의 최상위 <code>runtime</code></td><td>제외하고 실제 Tool argument는 유지합니다.</td></tr><tr><td>Framework/SDK metadata와 내부 ID</td><td>제외합니다. 소유 관계는 중첩 구조 자체로 표현합니다.</td></tr></tbody></table>
+<table><thead><tr><th>항목</th><th>Evidence 결과</th></tr></thead><tbody><tr><td>Main Agent 소유 model 호출의 <code>system</code> / <code>developer</code> message</td><td>제외합니다. <code>configs/system_prompt.jinja2</code>를 문자열로 찾아 지우는 것이 아니라 Main model 호출의 내부 지침 message 전체를 제외합니다.</td></tr><tr><td>Subagent 소유 model 호출의 system prompt</td><td>보존합니다. 어떤 위임과 제약으로 동작했는지 분석하는 데 필요한 정보입니다.</td></tr><tr><td>Model input의 Tool description / JSON Schema</td><td><code>role=&quot;tool&quot;</code>이고 <code>content.type=&quot;function&quot;</code>인 구조적 정의 message만 제외합니다. 실제 Tool result message는 유지합니다.</td></tr><tr><td>후속 Model의 누적 input snapshot</td><td>직전 input의 정확한 연장이고 추가분이 이미 보이는 Model·Tool·Skill·Agent observation으로 모두 설명되면 생략합니다. Agent의 첫 Model input과 새 user 맥락은 보존합니다.</td></tr><tr><td>Compaction summary model의 input/output과 Main Model input의 compaction snapshot</td><td>Langfuse 내부 trace에는 남기되 public evidence에는 복사하지 않습니다. Private prompt, rolling summary, <code>&lt;conversation_compaction&gt;</code> marker를 공개하지 않습니다.</td></tr><tr><td>Tool input의 최상위 <code>runtime</code></td><td>제외하고 실제 Tool argument는 유지합니다.</td></tr><tr><td>Framework/SDK metadata와 내부 ID</td><td>제외합니다. 소유 관계는 중첩 구조 자체로 표현합니다.</td></tr></tbody></table>
 <p>이 필터는 문자의 일부를 가리거나 길이로 자르는 방식이 아닙니다. Main/subagent 구분은
 trace의 native ancestry, Tool 정의 구분은 message의 role/type 구조를 사용합니다.</p>
 <p>Public Evidence의 <code>type=&quot;model&quot;</code>은 LLM 호출 한 번을 뜻하고 <code>name</code>은 provider model ID가 아니라
@@ -246,9 +266,11 @@ chunk의 <code>finish_reason</code>이 <code>error</code>입니다. HITL도 HTTP
 <p>Turn Evaluation evaluator와 <code>deep_search</code>의 rewrite/decomposition 단계는 이 Internal LLM
 gateway를 사용하며 credential은 별도 <code>INTERNAL_LLM_X_DEP_TICKET</code>을 사용합니다. Main model의
 <code>LLM_X_DEP_TICKET</code>을 대신 읽지 않습니다. Official OpenAI endpoint에는 Bearer auth와
-provider-compatible structured JSON schema를 함께 보내고, 기존 gateway header도 유지합니다.
-Evaluator가 설정되지 않았거나 실패하면 이미 만든 최신 답변을 보존하고 memory/conversation
-summary 후처리는 수행하지 않습니다. Gateway 오류가 나면 deep search는
+provider-compatible structured JSON schema를 함께 보내고, 기존 gateway header도 유지합니다. Structured
+output 호출은 initial과 schema repair request 모두 body에 <code>stream: false</code>를 명시하며 streaming
+Internal LLM을 위한 response parser나 lifecycle로 간주하지 않습니다. Evaluator가 설정되지
+않았거나 실패하면 이미 만든 최신 답변을 보존하고 memory/conversation summary 후처리는
+수행하지 않습니다. Gateway 오류가 나면 deep search는
 원 질문 기반 rule fallback으로 계속 진행합니다. fallback 이유는 tool result의
 <code>diagnostics.plan.fallback_reason</code>에서 확인할 수 있으며, Runs evidence는 이 tool result를
 해당 <code>tool</code> observation의 <code>output</code>에 그대로 보존합니다.</p>
