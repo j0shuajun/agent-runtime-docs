@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
-<title data-rh="true">FAQ / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="FAQ / Agent Runtime API Server"><meta data-rh="true" name="description" content="orch.rag가 비어 있으면 RAG 검색이 안 된 건가요?"><meta data-rh="true" property="og:description" content="orch.rag가 비어 있으면 RAG 검색이 안 된 건가요?"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"FAQ","item":"https://j0shuajun.github.io/agent-runtime-docs/FAQ"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.0c7e87d8.css">
-<script src="/agent-runtime-docs/assets/js/runtime~main.e5fa6900.js" defer="defer"></script>
+<title data-rh="true">FAQ / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><meta data-rh="true" property="og:locale" content="ko"><meta data-rh="true" name="docusaurus_locale" content="ko"><meta data-rh="true" name="docsearch:language" content="ko"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="FAQ / Agent Runtime API Server"><meta data-rh="true" name="description" content="orch.rag가 비어 있으면 RAG 검색이 안 된 건가요?"><meta data-rh="true" property="og:description" content="orch.rag가 비어 있으면 RAG 검색이 안 된 건가요?"><link data-rh="true" rel="icon" href="/agent-runtime-docs/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"FAQ","item":"https://j0shuajun.github.io/agent-runtime-docs/FAQ"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/assets/css/styles.2fbcf2f4.css">
+<script src="/agent-runtime-docs/assets/js/runtime~main.77182908.js" defer="defer"></script>
 <script src="/agent-runtime-docs/assets/js/main.41b79759.js" defer="defer"></script>
 </head>
 <body>
@@ -52,8 +52,11 @@ endpoint나 artifact card를 제공하지 않으므로, Agent는 파일을 만�
 최종 채팅 본문에 포함해야 합니다. 화면에는 filesystem 작업이 <code>[Tool] write_file</code> 같은 기존
 tool progress 형식으로 보일 수 있습니다.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="agent가-shell이나-pod의-실제-파일을-읽을-수-있나요">Agent가 shell이나 Pod의 실제 파일을 읽을 수 있나요?<a href="#agent가-shell이나-pod의-실제-파일을-읽을-수-있나요" class="hash-link" aria-label="Agent가 shell이나 Pod의 실제 파일을 읽을 수 있나요?에 대한 직접 링크" title="Agent가 shell이나 Pod의 실제 파일을 읽을 수 있나요?에 대한 직접 링크" translate="no">​</a></h2>
-<p>아닙니다. Agent filesystem은 Pod의 실제 <code>/</code>가 아니라 <code>/workspace</code>, <code>/memories</code>, <code>/skills</code>,
-<code>/agents</code>만 있는 default-deny virtual filesystem입니다. <code>/memories/MEMORY.md</code>는 현재
+<p>아닙니다. Agent filesystem은 Pod의 실제 <code>/</code>가 아니라 <code>/workspace</code>, <code>/runtime</code>,
+<code>/memories</code>, <code>/skills</code>, <code>/agents</code>로 구성된 default-deny virtual filesystem입니다.
+<code>/runtime</code>은 일반 workspace가 아닌 framework-owned private namespace입니다. Model은
+<code>/runtime/conversation_history/**</code>의 허용된 archive만 표적 조회할 수 있고 <code>/runtime</code>
+쓰기나 다른 private path 읽기는 거부됩니다. <code>/memories/MEMORY.md</code>는 현재
 사용자의 read-only 장기 Memory입니다. Shell/<code>execute</code>, <code>assets/mcp_server.json</code>, route되지
 않은 host 파일은 노출하지 않습니다. <code>/skills</code>, <code>/agents</code>, <code>/memories</code> 쓰기도 backend와
 permission에서 거부합니다.</p>
@@ -138,10 +141,13 @@ POST로 발급해야 합니다. 이미 revoked인 Key를 DELETE하면 204 no-op�
 최초 <code>revoked_at</code>을 그대로 보존합니다.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="큰-transcript를-같은-대화로-보내도-되나요">큰 transcript를 같은 대화로 보내도 되나요?<a href="#큰-transcript를-같은-대화로-보내도-되나요" class="hash-link" aria-label="큰 transcript를 같은 대화로 보내도 되나요?에 대한 직접 링크" title="큰 transcript를 같은 대화로 보내도 되나요?에 대한 직접 링크" translate="no">​</a></h2>
 <p>네. Client가 같은 <code>chat_id</code>의 user-visible transcript 전체를 다시 보내면 runtime은 checkpoint와
-일치하는 prefix를 건너뛰고 새 suffix만 추가합니다. History가 크면 오래된 내용을 순차적으로
-compaction한 뒤 현재 요청을 처리하므로, compaction trigger를 넘는다는 이유만으로 전체 입력을
-사전 거절하지 않습니다. 실패한 같은 요청을 transcript 그대로 재전송해도 checkpoint에 들어간
-user message는 중복으로 추가하지 않습니다.</p>
+일치하는 prefix를 건너뛰고 새 suffix만 추가합니다. History가 크면 model profile의
+capacity에 따른 native compaction이 summary projection과 recent tail을 만들어 현재 요청을
+처리합니다. 필요한 과거 세부사항은 thread-private <code>/runtime/conversation_history/**</code>
+archive를 <code>grep</code>/targeted <code>read_file</code>로 내부 조회할 수 있으며 사용자가 경로를 관리할
+필요는 없습니다. Compaction trigger를 넘는다는 이유만으로 전체 입력을 사전 거절하지
+않으며, 실패한 같은 요청을 transcript 그대로 재전송해도 checkpoint에 들어간 user
+message는 중복으로 추가하지 않습니다.</p>
 <p>다만 최신 user 요청 하나가 provider context를 넘을 정도로 큰 경우는 과거 history를
 compaction해도 해결할 수 없습니다. 이 경우에는 입력을 나누어 같은 <code>chat_id</code>, 새
 <code>x_request_id</code>로 보내세요.</p>
