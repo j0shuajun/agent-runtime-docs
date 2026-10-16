@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">FAQ / Agent Runtime API Server</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://j0shuajun.github.io/agent-runtime-docs/en/FAQ"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" property="og:locale:alternate" content="ko"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="FAQ / Agent Runtime API Server"><meta data-rh="true" name="description" content="Does empty orch.rag mean no search occurred? {#orchrag가-비어-있으면-rag-검색이-안-된-건가요}"><meta data-rh="true" property="og:description" content="Does empty orch.rag mean no search occurred? {#orchrag가-비어-있으면-rag-검색이-안-된-건가요}"><link data-rh="true" rel="icon" href="/agent-runtime-docs/en/img/favicon.png"><link data-rh="true" rel="canonical" href="https://j0shuajun.github.io/agent-runtime-docs/en/FAQ"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="ko"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/en/FAQ" hreflang="en"><link data-rh="true" rel="alternate" href="https://j0shuajun.github.io/agent-runtime-docs/FAQ" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"FAQ","item":"https://j0shuajun.github.io/agent-runtime-docs/en/FAQ"}]}</script><link rel="stylesheet" href="/agent-runtime-docs/en/assets/css/styles.2e629270.css">
-<script src="/agent-runtime-docs/en/assets/js/runtime~main.0e69bcf9.js" defer="defer"></script>
-<script src="/agent-runtime-docs/en/assets/js/main.73b18a00.js" defer="defer"></script>
+<script src="/agent-runtime-docs/en/assets/js/runtime~main.1e729a47.js" defer="defer"></script>
+<script src="/agent-runtime-docs/en/assets/js/main.ac63605e.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -136,7 +136,7 @@ is a <code>204</code> no-op and preserves the original <code>revoked_at</code>.<
 <p>Yes. Runtime skips the checkpoint-matching prefix and adds only the new suffix.
 Native compaction creates a summary projection and recent tail according to model
 capacity. Missing details can be recovered internally using <code>grep</code> and targeted
-<code>read_file</code> on thread-private <code>/runtime/conversation_history/**</code> archives. Clients
+<code>read_file</code> on actually preserved thread-private <code>/runtime/conversation_history/**</code> archives. Clients
 do not manage these paths. Merely exceeding a compaction trigger does not reject
 the transcript; retrying a failed request also avoids duplicating checkpointed input.</p>
 <p>If the single latest user message exceeds provider context capacity, compaction
